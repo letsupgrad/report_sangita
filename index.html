@@ -1,1 +1,1294 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdTech Idea Report Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.10.0/tf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- For PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- For Excel/CSV export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .form-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .analytics-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(149, 165, 166, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4);
+        }
+        
+        .analytics-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .analytics-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            font-size: 13px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        
+        .metric-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: 15px;
+        }
+        
+        .ml-insights {
+            background: linear-gradient(135deg, #e8f4f8, #d1ecf1);
+            border-left: 4px solid #3498db;
+        }
+        
+        .prediction-score {
+            font-size: 24px;
+            font-weight: 900;
+            color: #2c3e50;
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        
+        .output-section {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        
+        .output-content {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e9ecef;
+            border-left: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-low { background: #e74c3c; }
+        .status-medium { background: #f39c12; }
+        .status-high { background: #27ae60; }
+        
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .analytics-panel {
+                position: static;
+            }
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Export button styling */
+        .export-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        .export-options .btn {
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AdTech Idea Report Generator</h1>
+            <p>AI-Powered Report Generation with Machine Learning Analytics</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="form-section">
+                <h2 style="margin-bottom: 25px; color: #2c3e50;">Project Details</h2>
+                
+                <div class="form-group">
+                    <label for="ideaTitle">💡 Idea Title</label>
+                    <input type="text" id="ideaTitle" placeholder="Enter your AdTech idea title">
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">📂 Category</label>
+                    <select id="category">
+                        <option value="">Select Category</option>
+                        <option value="DSP/Buy-Side">DSP/Buy-Side</option>
+                        <option value="SSP/Sell-Side">SSP/Sell-Side</option>
+                        <option value="Measurement/Analytics">Measurement/Analytics</option>
+                        <option value="Privacy-First">Privacy-First</option>
+                        <option value="Emerging Channels">Emerging Channels</option>
+                        <option value="Infrastructure">Infrastructure</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="priority">⚡ Priority Level</label>
+                    <select id="priority">
+                        <option value="">Select Priority</option>
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="timeline">⏱️ Development Timeline</label>
+                    <input type="text" id="timeline" placeholder="e.g., 3-6 months">
+                </div>
+                
+                <div class="form-group">
+                    <label for="problemStatement">🎯 Problem Statement</label>
+                    <textarea id="problemStatement" placeholder="Describe the specific pain point this idea addresses..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="solution">💡 Solution Overview</label>
+                    <textarea id="solution" placeholder="Detailed explanation of your proposed solution..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="marketSize">📊 Market Size (USD Millions)</label>
+                    <input type="number" id="marketSize" placeholder="Enter market size in millions">
+                </div>
+                
+                <div class="form-group">
+                    <label for="expectedRevenue">💰 Expected Revenue (Year 1, USD Thousands)</label>
+                    <input type="number" id="expectedRevenue" placeholder="Enter expected revenue in thousands">
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="generateReport()">🎯 Generate Report</button>
+                    <button class="btn btn-secondary" onclick="analyzeIdea()">🔍 Analyze Idea</button>
+                    <!-- Export buttons will appear after report generation -->
+                </div>
+            </div>
+            
+            <div class="analytics-panel">
+                <div class="analytics-card">
+                    <div class="analytics-title">
+                        📊 Real-time Analytics
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Form Completion</span>
+                        <span class="metric-value" id="completionRate">0%</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Ideas Generated</span>
+                        <span class="metric-value" id="ideasCount">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Success Score</span>
+                        <span class="metric-value" id="successScore">--</span>
+                    </div>
+                </div>
+                
+                <div class="analytics-card ml-insights">
+                    <div class="analytics-title">
+                        🤖 ML Success Prediction
+                    </div>
+                    <div class="prediction-score" id="mlPrediction">--</div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceBar" style="width: 0%"></div>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #6c757d; margin-top: 5px;">
+                        Confidence Level: <span id="confidenceLevel">0%</span>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="analytics-title">
+                        📈 Revenue Projection
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="analytics-card">
+                    <div class="analytics-title">
+                        🎯 Market Analysis
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="marketChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="output-section hidden" id="outputSection">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">📄 Generated Report</h2>
+            <div class="output-content" id="reportOutput"></div>
+            <div class="export-options">
+                <button class="btn btn-success" onclick="exportReport('pdf')">Export as PDF</button>
+                <button class="btn btn-success" onclick="exportReport('csv')">Export as CSV</button>
+                <button class="btn btn-success" onclick="exportReport('xlsx')">Export as Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let mlModel = null;
+        let revenueChart = null;
+        let marketChart = null;
+        let generatedReports = 0;
+        let currentReportContent = ''; // To store the generated report text
+
+        // Machine Learning Model Setup
+        class AdTechMLModel {
+            constructor() {
+                this.model = null;
+                this.isTrained = false;
+                this.trainingData = this.generateTrainingData();
+            }
+            
+            generateTrainingData() {
+                const categories = ['DSP/Buy-Side', 'SSP/Sell-Side', 'Measurement/Analytics', 'Privacy-First', 'Emerging Channels', 'Infrastructure'];
+                const priorities = ['High', 'Medium', 'Low'];
+                
+                const data = [];
+                for (let i = 0; i < 1000; i++) {
+                    const categoryIndex = Math.floor(Math.random() * categories.length);
+                    const priorityIndex = Math.floor(Math.random() * priorities.length);
+                    const marketSize = Math.random() * 10000 + 100; // 100M to 10B
+                    const expectedRevenue = Math.random() * 50000 + 1000; // 1M to 50M
+                    const problemLength = Math.random() * 500 + 50;
+                    const solutionLength = Math.random() * 800 + 100;
+                    
+                    let successScore = 0.3; 
+                    successScore += categoryIndex === 3 ? 0.2 : 0; 
+                    successScore += priorityIndex === 0 ? 0.25 : priorityIndex === 1 ? 0.15 : 0.05; 
+                    successScore += Math.min(marketSize / 10000, 0.2); 
+                    successScore += Math.min(expectedRevenue / 50000, 0.15); 
+                    successScore += Math.min(problemLength / 500, 0.1); 
+                    successScore += Math.min(solutionLength / 800, 0.1); 
+                    successScore += (Math.random() - 0.5) * 0.2; 
+                    
+                    successScore = Math.max(0.1, Math.min(1.0, successScore));
+                    
+                    data.push({
+                        features: [categoryIndex, priorityIndex, marketSize / 1000, expectedRevenue / 1000, problemLength, solutionLength],
+                        label: successScore
+                    });
+                }
+                return data;
+            }
+            
+            async createModel() {
+                this.model = tf.sequential({
+                    layers: [
+                        tf.layers.dense({ inputShape: [6], units: 64, activation: 'relu' }),
+                        tf.layers.dropout({ rate: 0.2 }),
+                        tf.layers.dense({ units: 32, activation: 'relu' }),
+                        tf.layers.dropout({ rate: 0.1 }),
+                        tf.layers.dense({ units: 16, activation: 'relu' }),
+                        tf.layers.dense({ units: 1, activation: 'sigmoid' })
+                    ]
+                });
+                
+                this.model.compile({
+                    optimizer: tf.train.adam(0.001),
+                    loss: 'meanSquaredError',
+                    metrics: ['mae']
+                });
+            }
+            
+            async trainModel() {
+                if (!this.model) await this.createModel();
+                
+                const features = this.trainingData.map(d => d.features);
+                const labels = this.trainingData.map(d => d.label);
+                
+                const xs = tf.tensor2d(features);
+                const ys = tf.tensor1d(labels);
+                
+                await this.model.fit(xs, ys, {
+                    epochs: 50,
+                    batchSize: 32,
+                    shuffle: true,
+                    verbose: 0
+                });
+                
+                this.isTrained = true;
+                xs.dispose();
+                ys.dispose();
+            }
+            
+            predict(features) {
+                if (!this.isTrained) return { score: 0.5, confidence: 0.5 };
+                
+                const prediction = this.model.predict(tf.tensor2d([features]));
+                const score = prediction.dataSync()[0];
+                const confidence = 0.7 + Math.random() * 0.2; // Simulated confidence
+                
+                prediction.dispose();
+                return { score, confidence };
+            }
+        }
+        
+        async function initializeML() {
+            mlModel = new AdTechMLModel();
+            await mlModel.trainModel();
+            console.log('ML Model initialized and trained');
+        }
+        
+        function updateFormCompletion() {
+            const fields = ['ideaTitle', 'category', 'priority', 'timeline', 'problemStatement', 'solution', 'marketSize', 'expectedRevenue'];
+            let completed = 0;
+            
+            fields.forEach(field => {
+                if (document.getElementById(field).value.trim()) {
+                    completed++;
+                }
+            });
+            
+            const percentage = Math.round((completed / fields.length) * 100);
+            document.getElementById('completionRate').textContent = percentage + '%';
+            
+            if (completed >= 4) { 
+                updateMLPrediction();
+            }
+        }
+        
+        function updateMLPrediction() {
+            if (!mlModel || !mlModel.isTrained) return;
+            
+            const category = document.getElementById('category').value;
+            const priority = document.getElementById('priority').value;
+            const marketSize = parseFloat(document.getElementById('marketSize').value) || 0;
+            const expectedRevenue = parseFloat(document.getElementById('expectedRevenue').value) || 0;
+            const problemLength = document.getElementById('problemStatement').value.length;
+            const solutionLength = document.getElementById('solution').value.length;
+            
+            const categories = ['DSP/Buy-Side', 'SSP/Sell-Side', 'Measurement/Analytics', 'Privacy-First', 'Emerging Channels', 'Infrastructure'];
+            const priorities = ['High', 'Medium', 'Low'];
+            
+            const categoryIndex = categories.indexOf(category);
+            const priorityIndex = priorities.indexOf(priority);
+            
+            if (categoryIndex === -1 || priorityIndex === -1) {
+                document.getElementById('mlPrediction').textContent = '--';
+                document.getElementById('confidenceBar').style.width = '0%';
+                document.getElementById('confidenceLevel').textContent = '0%';
+                document.getElementById('successScore').innerHTML = '--';
+                return;
+            }
+            
+            const normalizedMarketSize = marketSize / 1000; 
+            const normalizedRevenue = expectedRevenue / 1000; 
+            
+            const features = [categoryIndex, priorityIndex, normalizedMarketSize, normalizedRevenue, problemLength, solutionLength];
+            const prediction = mlModel.predict(features);
+            
+            const score = Math.round(prediction.score * 100);
+            const confidence = Math.round(prediction.confidence * 100);
+            
+            document.getElementById('mlPrediction').textContent = score + '%';
+            document.getElementById('confidenceBar').style.width = confidence + '%';
+            document.getElementById('confidenceLevel').textContent = confidence + '%';
+            
+            let statusClass = 'status-low';
+            if (score > 70) statusClass = 'status-high';
+            else if (score > 40) statusClass = 'status-medium';
+            document.getElementById('successScore').innerHTML = `<span class="status-indicator ${statusClass}"></span>${score}%`;
+        }
+        
+        function initializeCharts() {
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            revenueChart = new Chart(revenueCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Q1', 'Q2', 'Q3', 'Q4', 'Y2', 'Y3'],
+                    datasets: [{
+                        label: 'Revenue Projection',
+                        data: [0, 0, 0, 0, 0, 0],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    }
+                }
+            });
+            
+            const marketCtx = document.getElementById('marketChart').getContext('2d');
+            marketChart = new Chart(marketCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Target Market', 'Competition', 'Available'],
+                    datasets: [{
+                        data: [30, 45, 25], 
+                        backgroundColor: ['#3498db', '#e74c3c', '#27ae60']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        function updateRevenueChart() {
+            const expectedRevenue = parseFloat(document.getElementById('expectedRevenue').value) || 0;
+            const projectedData = [
+                expectedRevenue * 0.2, 
+                expectedRevenue * 0.5, 
+                expectedRevenue * 0.8, 
+                expectedRevenue,       
+                expectedRevenue * 1.8, 
+                expectedRevenue * 3.2  
+            ];
+            
+            revenueChart.data.datasets[0].data = projectedData;
+            revenueChart.update();
+        }
+        
+        // Helper functions for report generation (same as before)
+        function getTechnicalRequirements(category) { /* ... */ return ''; } // Placeholder, actual code is in the original snippet
+        function getCompetitivePositioning(category) { /* ... */ return ''; } // Placeholder
+        function getSuccessMetrics(category) { /* ... */ return ''; } // Placeholder
+        function getPlatformIntegrations(category) { /* ... */ return ''; } // Placeholder
+        function getDataRequirements(category) { /* ... */ return ''; } // Placeholder
+
+        // ---- ACTUAL HELPER FUNCTIONS (copied from previous response for completeness) ----
+        function getTechnicalRequirements(category) {
+            const requirements = {
+                'DSP/Buy-Side': `- Real-time bidding algorithms with ML optimization
+- Audience segmentation and targeting engines
+- Cross-device identity resolution systems
+- Attribution tracking and conversion measurement
+- Creative optimization and A/B testing platforms`,
+                'SSP/Sell-Side': `- Header bidding wrapper optimization
+- Yield optimization algorithms with dynamic pricing
+- Real-time floor pricing mechanisms
+- Ad server integration and trafficking
+- Revenue analytics and reporting dashboards`,
+                'Measurement/Analytics': `- Multi-touch attribution modeling systems
+- Cross-device tracking and identity graphing
+- Fraud detection ML pipelines
+- Viewability measurement and verification
+- Brand safety classification engines`,
+                'Privacy-First': `- Differential privacy implementation
+- Secure multi-party computation protocols
+- Federated learning systems for audience insights
+- Consent management platform integration
+- Data clean room architecture and governance`,
+                'Emerging Channels': `- CTV/OTT: VAST/VPAID compliance, streaming integrations
+- Audio/Podcast: Dynamic ad insertion, voice recognition
+- DOOH: Location-based targeting, contextual optimization
+- Connected devices and IoT advertising capabilities`,
+                'Infrastructure': `- Low-latency data processing (sub-100ms response)
+- Auto-scaling bidding infrastructure
+- Real-time reporting and analytics pipelines
+- Multi-region deployment with edge computing
+- High-availability architecture with 99.9% uptime`
+            };
+            return requirements[category] || 'Standard AdTech infrastructure requirements';
+        }
+        
+        function getCompetitivePositioning(category) {
+            const positioning = {
+                'DSP/Buy-Side': 'Advanced ML-driven optimization with superior ROI performance',
+                'SSP/Sell-Side': 'Maximum yield optimization with transparent reporting',
+                'Measurement/Analytics': 'Privacy-first attribution with cross-channel accuracy',
+                'Privacy-First': 'Industry-leading privacy compliance with maintained effectiveness',
+                'Emerging Channels': 'First-to-market advantage in rapidly growing channels',
+                'Infrastructure': 'Enterprise-grade reliability with cost-effective scaling'
+            };
+            return positioning[category] || 'Innovative solution with competitive advantages';
+        }
+        
+        function getSuccessMetrics(category) {
+            const metrics = {
+                'DSP/Buy-Side': `- ROAS improvement: Target 25-40% increase
+- CPA reduction: 15-30% optimization
+- CTR/CVR lift: 20-35% performance gain
+- Attribution accuracy: 90%+ precision
+- Audience reach expansion: 15-25% growth`,
+                'SSP/Sell-Side': `- Fill rate optimization: 95%+ inventory utilization
+- eCPM improvement: 20-35% revenue increase
+- Latency reduction: Sub-200ms response times
+- Header bidding efficiency: 90%+ win rate
+- Revenue per visitor: 25-40% improvement`,
+                'Measurement/Analytics': `- Attribution accuracy: 85%+ cross-channel precision
+- Cross-device match rates: 80%+ accuracy
+- Fraud detection: 99.5%+ accuracy with <0.1% false positives
+- Viewability scores: IAB compliant measurement
+- Brand safety coverage: 99%+ content classification`,
+                'Privacy-First': `- Consent capture rates: 70%+ opt-in achievement
+- Cookieless match accuracy: 75%+ precision
+- Data compliance scores: 100% regulatory adherence
+- Privacy-preserving reach: Maintain 90%+ targeting accuracy`,
+                'Emerging Channels': `- Completion rates: 85%+ for video/audio content
+- Frequency management: Optimal exposure across devices
+- Cross-screen attribution: 80%+ accuracy
+- Incremental reach: 20-30% audience expansion`,
+                'Infrastructure': `- Latency improvements: <100ms average response
+- Throughput capacity: 1M+ QPS handling
+- System uptime: 99.9% availability SLA
+- Processing accuracy: 99.95%+ data integrity
+- Cost per transaction: 40% reduction vs competitors`
+            };
+            return metrics[category] || 'Standard performance and business metrics';
+        }
+        
+        function getPlatformIntegrations(category) {
+            const integrations = {
+                'DSP/Buy-Side': `**Major DSPs:** Google DV360, Amazon DSP, The Trade Desk
+**DMPs/CDPs:** Salesforce DMP, Adobe Audience Manager, LiveRamp
+**Identity Providers:** LiveRamp IdentityLink, Neustar Fabrick
+**Creative Platforms:** Celtra, Thunder, Flashtalking
+**Brand Safety:** Integral Ad Science, DoubleVerify, MOAT`,
+                'SSP/Sell-Side': `**Header Bidding:** Prebid.js, Amazon TAM, Index Exchange
+**Ad Servers:** Google Ad Manager, FreeWheel, OpenX
+**Yield Optimization:** PubMatic, Magnite, OpenX
+**Analytics:** Google Analytics, Adobe Analytics, Chartbeat`,
+                'Measurement/Analytics': `**Attribution Platforms:** Adjust, AppsFlyer, Branch, Kochava
+**Analytics Tools:** Google Analytics 4, Adobe Analytics
+**Cross-Device:** LiveRamp, Tapad, Drawbridge
+**Fraud Detection:** IAS, DoubleVerify, MOAT, White Ops`,
+                'Privacy-First': `**Consent Management:** OneTrust, Cookiebot, TrustArc
+**Identity Solutions:** LiveRamp ATS, ID5, Unified ID 2.0
+**Data Clean Rooms:** Google ADH, Amazon Clean Rooms
+**Privacy Tools:** Differential privacy libraries, secure computation`,
+                'Emerging Channels': `**CTV/OTT:** Roku Advertising, Samsung Ads, LG Ads, Hulu Ad Manager
+**Audio/Podcast:** Spotify Ad Studio, Pandora AMP, SoundCloud
+**DOOH:** Broadsign, Vistar Media, Place Exchange
+**Retail Media:** Amazon DSP, Walmart Connect, Target Roundel`,
+                'Infrastructure': `**Cloud Platforms:** AWS, Google Cloud, Microsoft Azure
+**Data Processing:** Apache Kafka, Apache Spark, Elasticsearch
+**Monitoring:** DataDog, New Relic, Grafana
+**CDN:** CloudFlare, Amazon CloudFront, Fastly`
+            };
+            return integrations[category] || 'Standard AdTech platform integrations';
+        }
+        
+        function getDataRequirements(category) {
+            const requirements = {
+                'DSP/Buy-Side': `**Audience Data:** First-party CRM data, third-party segments, lookalike modeling
+**Contextual Data:** Page content, keyword analysis, brand safety scores
+**Behavioral Data:** Purchase intent, browsing history, engagement metrics
+**Identity Data:** Cross-device mapping, household linking, identity graphs`,
+                'SSP/Sell-Side': `**Inventory Data:** Ad slot performance, historical fill rates, pricing data
+**User Data:** Demographics (privacy-compliant), engagement patterns
+**Competitive Data:** Market pricing, demand trends, yield benchmarks
+**Performance Data:** Viewability, completion rates, user satisfaction`,
+                'Measurement/Analytics': `**Conversion Data:** Multi-channel attribution touchpoints, offline conversions
+**Engagement Data:** Time-on-site, interaction depth, content consumption
+**Identity Data:** Cross-device user journeys, household-level insights
+**Quality Data:** Fraud indicators, bot detection, invalid traffic filtering`,
+                'Privacy-First': `**Consented Data:** Explicit user permissions, preference management
+**Aggregated Insights:** Privacy-preserving audience segments
+**Synthetic Data:** ML-generated training datasets for testing
+**Compliance Data:** Audit trails, consent records, data lineage`,
+                'Emerging Channels': `**CTV/OTT:** Viewing behaviors, household demographics, streaming preferences
+**Audio/Podcast:** Listening patterns, voice interactions, content preferences
+**DOOH:** Location analytics, foot traffic, environmental context data
+**Connected Devices:** IoT interactions, smart home behaviors`,
+                'Infrastructure': `**Real-time Data:** Sub-second data ingestion and processing
+**Historical Data:** Long-term performance trends and benchmarks
+**Reference Data:** Geographic, demographic, and contextual datasets
+**Operational Data:** System performance, error logs, usage analytics`
+            };
+            return requirements[category] || 'Standard data processing and storage requirements';
+        }
+        // ---- END HELPER FUNCTIONS ----
+
+        function generateReport() {
+            const ideaTitle = document.getElementById('ideaTitle').value.trim();
+            const category = document.getElementById('category').value;
+            const priority = document.getElementById('priority').value;
+            const timeline = document.getElementById('timeline').value.trim();
+            const problemStatement = document.getElementById('problemStatement').value.trim();
+            const solution = document.getElementById('solution').value.trim();
+            const marketSize = document.getElementById('marketSize').value.trim();
+            const expectedRevenue = document.getElementById('expectedRevenue').value.trim();
+            
+            if (!ideaTitle || !category || !priority) {
+                alert('Please fill in at least the Idea Title, Category, and Priority Level fields.');
+                return;
+            }
+            
+            const outputSection = document.getElementById('outputSection');
+            const reportOutput = document.getElementById('reportOutput');
+            
+            outputSection.classList.remove('hidden');
+            reportOutput.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-left: 15px;">Generating comprehensive AdTech report...</p></div>';
+            
+            setTimeout(() => {
+                const report = `# AdTech Idea Report
+
+## Executive Summary
+**Idea Title:** ${ideaTitle}
+**Category:** ${category}
+**Priority Level:** ${priority}
+**Expected Impact:** Revenue, Efficiency, Market Position
+**Development Timeline:** ${timeline || 'Not specified'}
+
+---
+
+## Problem Statement
+### Identified Challenge
+${problemStatement || 'The specific problem statement needs to be detailed during the initial development phase.'}
+
+### Market Context
+The advertising technology landscape is rapidly evolving, with increasing emphasis on privacy-first solutions, cookieless targeting, and emerging channels. The estimated market size for ${category} solutions is ${marketSize ? `$${parseInt(marketSize).toLocaleString()} Million` : 'TBD'}, presenting a significant opportunity for innovative ventures.
+
+---
+
+## Solution Overview
+### Core Concept
+${solution || 'The detailed solution will be elaborated upon during the technical specification phase.'}
+
+### Technical Architecture
+**Key Architectural Pillars:**
+- Robust system design tailored for ${category}
+- High-performance real-time data processing
+- Strict adherence to privacy-compliant data handling
+- Scalable infrastructure to support rapid growth
+- Seamless API integrations with leading ad tech platforms
+
+**Specific ${category} Requirements:**
+${getTechnicalRequirements(category)}
+
+---
+
+## Business Case
+### Revenue Model
+**Year 1 Revenue Projection:** ${expectedRevenue ? `$${parseInt(expectedRevenue).toLocaleString()}K` : 'TBD'}
+**Pricing Strategy:** A tiered SaaS model complemented by usage-based components.
+**Client Retention:** Focus on delivering demonstrable ROI and exceptional customer support.
+
+### Market Opportunity
+**Target Market Size:** ${marketSize ? `$${parseInt(marketSize).toLocaleString()} Million` : 'TBD'}
+**Go-to-Market Strategy:** Primarily direct sales targeting enterprise clients, with a secondary focus on developing strategic partner channels.
+**Competitive Positioning:** ${getCompetitivePositioning(category)}
+
+### Key Success Metrics
+${getSuccessMetrics(category)}
+
+---
+
+## Implementation Plan
+### Development Phases
+**Phase 1: Minimum Viable Product (MVP) (Weeks 1-12)**
+- Development of core functionalities
+- Integration with key platforms
+- Rigorous internal testing and validation
+
+**Phase 2: Beta Program (Weeks 13-24)**
+- Rollout of a limited client pilot program
+- Feature refinement based on user feedback
+- Optimization of performance and scalability
+
+**Phase 3: Market Launch (Weeks 25-36)**
+- Official market release of the product
+- Execution of targeted marketing campaigns
+- Deployment of robust support infrastructure
+
+### Resource Requirements
+- **Engineering Team:** 4-6 full-stack developers, 2 data scientists.
+- **Product Management:** 1 senior product manager, 1 technical product manager.
+- **Sales & Marketing:** 2 sales executives, 1 marketing manager.
+- **Estimated Development Budget:** Approximately $${Math.round((parseFloat(expectedRevenue) || 1000) * 0.6).toLocaleString()}K for the initial development phase.
+
+---
+
+## Risk Assessment
+### Potential Technical Risks
+- Complexity in integrating with diverse existing ad tech stacks.
+- Challenges in scaling the system during periods of rapid user growth.
+- Issues related to data quality and maintaining strict privacy compliance.
+
+### Potential Market Risks
+- Strong competitive responses from established market players.
+- Client adoption barriers due to resistance to change.
+- Impact of evolving regulatory landscapes on ${category} solutions.
+
+### Mitigation Strategies
+- Implement a phased rollout approach to minimize unforeseen risks.
+- Forge strong strategic partnerships with key industry vendors.
+- Maintain continuous monitoring of the regulatory environment.
+- Employ agile development methodologies for rapid iteration and adaptation.
+
+---
+
+## Technology Requirements
+### Platform Integrations
+${getPlatformIntegrations(category)}
+
+### Data Requirements
+${getDataRequirements(category)}
+
+### Privacy Compliance Strategy
+- Full alignment with GDPR/CCPA regulations, including automated compliance checks.
+- Seamless integration with Consent Management Platforms (CMPs).
+- Robust data anonymization and pseudonymization techniques.
+- Maintenance of comprehensive audit trails for data handling.
+
+---
+
+## Financial Projections
+### Investment Requirements
+**Total Estimated Investment:** Approximately $${Math.round((parseFloat(expectedRevenue) || 1000) * 0.8).toLocaleString()}K
+- Development Costs: 60%
+- Infrastructure: 20%
+- Marketing & Sales: 15%
+- Operational Overhead: 5%
+
+### Revenue Projections
+- **Year 1:** $${(parseFloat(expectedRevenue) || 0).toLocaleString()}K
+- **Year 2:** $${Math.round((parseFloat(expectedRevenue) || 1000) * 2.2).toLocaleString()}K
+- **Year 3:** $${Math.round((parseFloat(expectedRevenue) || 1000) * 4.1).toLocaleString()}K
+
+### Return on Investment (ROI) Analysis
+- **Estimated Break-even Period:** Approximately 12 months.
+- **3-Year Net Present Value (NPV):** $${Math.round((parseFloat(expectedRevenue) || 1000) * 2.8).toLocaleString()}K
+- **Projected 3-Year ROI:** ${Math.round(((parseFloat(expectedRevenue) || 1000) * 4.1) / ((parseFloat(expectedRevenue) || 1000) * 0.8) * 100)}%
+
+---
+
+## Next Steps
+### Immediate Actions (Week 1-2)
+- Convene a stakeholder alignment meeting.
+- Conduct a thorough technical feasibility assessment.
+- Finalize resource allocation plans.
+- Identify and engage potential pilot clients.
+
+### Short-term Goals (Month 1-3)
+- Commence MVP development.
+- Conduct initial prototype testing.
+- Gather and analyze client feedback.
+- Plan feature iterations based on findings.
+
+### Long-term Objectives (Months 3-12)
+- Execute a successful full market launch.
+- Continuously optimize product performance.
+- Expand the feature set according to the product roadmap.
+- Implement a comprehensive market penetration strategy.
+
+---
+
+**Report Generated On:** ${new Date().toLocaleDateString()}
+**ML Success Prediction:** ${document.getElementById('mlPrediction').textContent}
+**Form Completion Rate:** ${document.getElementById('completionRate').textContent}
+**Current Status:** Ready for Review
+
+========================
+Generated by AdTech Idea Report Generator v1.0
+AI-Powered Analysis with Machine Learning Insights
+========================`;
+
+                reportOutput.textContent = report;
+                currentReportContent = report; // Store the generated report
+                reportOutput.classList.add('fade-in');
+                
+                generatedReports++;
+                document.getElementById('ideasCount').textContent = generatedReports;
+                
+                updateRevenueChart();
+                
+            }, 2000); 
+        }
+        
+        function analyzeIdea() {
+            const ideaTitle = document.getElementById('ideaTitle').value.trim();
+            const category = document.getElementById('category').value;
+            
+            if (!ideaTitle || !category) {
+                alert('Please enter at least an Idea Title and Category for analysis.');
+                return;
+            }
+            
+            updateMLPrediction();
+            
+            const analysisResults = {
+                'DSP/Buy-Side': {
+                    marketTrend: 'Growing demand for privacy-first targeting solutions and AI-driven optimization.',
+                    competition: 'High - dominated by major tech giants and established players.',
+                    opportunity: 'Medium-High - differentiation through superior ML efficiency and data integration is key.'
+                },
+                'SSP/Sell-Side': {
+                    marketTrend: 'Continued focus on header bidding optimization and yield management.',
+                    competition: 'Medium - a fragmented market with opportunities for specialized solutions.',
+                    opportunity: 'High - publishers are actively seeking tools to maximize monetization and transparency.'
+                },
+                'Measurement/Analytics': {
+                    marketTrend: 'Critical shift towards privacy-compliant attribution and measurement post-iOS 14.5.',
+                    competition: 'Medium - traditional players are adapting, creating space for innovative, privacy-focused solutions.',
+                    opportunity: 'Very High - significant demand for accurate, cross-channel measurement without relying on third-party cookies.'
+                },
+                'Privacy-First': {
+                    marketTrend: 'The fastest-growing segment in AdTech, driven by regulatory changes and consumer demand.',
+                    competition: 'Low-Medium - the market is still maturing, with early entrants having a significant advantage.',
+                    opportunity: 'Very High - companies prioritizing privacy compliance and user trust will lead the market.'
+                },
+                'Emerging Channels': {
+                    marketTrend: 'Rapid growth in CTV, Audio/Podcast, and DOOH, showing over 40% year-over-year increases.',
+                    competition: 'Low - limited established players, offering significant first-mover advantages.',
+                    opportunity: 'Very High - early adoption in these channels can capture substantial market share.'
+                },
+                'Infrastructure': {
+                    marketTrend: 'Demand for cloud-native, highly scalable, and low-latency solutions.',
+                    competition: 'High - dominated by major cloud providers (AWS, GCP, Azure) and specialized AdTech infrastructure firms.',
+                    opportunity: 'Medium - opportunities exist in niche specialization, cost optimization, or specific performance enhancements.'
+                }
+            };
+            
+            const result = analysisResults[category] || analysisResults['Infrastructure']; 
+            
+            alert(`
+Analysis for "${ideaTitle}" (${category}):
+
+Market Trend: ${result.marketTrend}
+Competition Level: ${result.competition}
+Market Opportunity: ${result.opportunity}
+
+ML Success Prediction: ${document.getElementById('mlPrediction').textContent}
+Confidence Level: ${document.getElementById('confidenceLevel').textContent}
+
+Recommendation: ${result.opportunity.includes('Very High') ? 'Strongly recommended - high potential, proceed with detailed planning.' : result.opportunity.includes('High') ? 'Promising - proceed with further validation and refinement.' : 'Moderate opportunity - ensure strong differentiation and a clear value proposition.'}
+            `);
+        }
+        
+        // Export report function with format selection
+        function exportReport(format) {
+            if (!currentReportContent) {
+                alert('Please generate a report first before exporting.');
+                return;
+            }
+
+            const reportElement = document.getElementById('reportOutput');
+            const reportTitle = document.getElementById('ideaTitle').value.trim() || 'AdTechReport';
+            const safeFileName = reportTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+            if (format === 'pdf') {
+                // Using html2pdf.js to convert the report content to PDF
+                const options = {
+                    margin: 0.5,
+                    filename: `${safeFileName}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+                html2pdf().from(reportElement).set(options).save();
+            } else if (format === 'csv') {
+                // Parse report content to CSV
+                const csvData = parseReportToCSV(currentReportContent);
+                const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+                downloadBlob(blob, `${safeFileName}.csv`);
+            } else if (format === 'xlsx') {
+                // Parse report content to XLSX
+                const jsonData = parseReportToJSON(currentReportContent);
+                const ws = XLSX.utils.json_to_sheet(jsonData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Report');
+                XLSX.writeFile(wb, `${safeFileName}.xlsx`);
+            }
+        }
+
+        // Helper to parse report text into CSV format
+        function parseReportToCSV(reportText) {
+            // This is a simplified parser. A more robust one would use regex or more sophisticated string manipulation.
+            // For now, we'll focus on key-value pairs and sections.
+            let csv = '';
+            const lines = reportText.split('\n');
+            let currentSection = '';
+
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                
+                // Detect headings (e.g., ## Section Title)
+                if (trimmedLine.startsWith('## ')) {
+                    currentSection = trimmedLine.substring(3).replace(/[^a-z0-9\s]/gi, '').trim();
+                    csv += `\n"${currentSection}",\n`; // Section header for CSV
+                } 
+                // Detect key-value pairs (e.g., **Key:** Value)
+                else if (trimmedLine.startsWith('**') && trimmedLine.includes(': ')) {
+                    const parts = trimmedLine.split(': ');
+                    const key = parts[0].substring(2).replace(/\*|\:/g, '').trim();
+                    const value = parts.slice(1).join(': ').trim();
+                    csv += `"${key}","${value.replace(/"/g, '""')}",\n`; // CSV escaping quotes
+                }
+                // Basic handling for bullet points (e.g., - Item)
+                else if (trimmedLine.startsWith('- ')) {
+                    const item = trimmedLine.substring(2).trim();
+                    csv += `"-","${item.replace(/"/g, '""')}",\n`;
+                }
+            });
+
+            // Add some common metrics that might not be directly in key-value pairs but are important
+            const completionRate = document.getElementById('completionRate').textContent;
+            const ideasGenerated = document.getElementById('ideasCount').textContent;
+            const successScore = document.getElementById('successScore').textContent;
+            const mlPrediction = document.getElementById('mlPrediction').textContent;
+            const confidenceLevel = document.getElementById('confidenceLevel').textContent;
+
+            csv += `\nSummary Metrics,\n`;
+            csv += `"Form Completion Rate","${completionRate.replace(/"/g, '""')}",\n`;
+            csv += `"Ideas Generated","${ideasGenerated.replace(/"/g, '""')}",\n`;
+            csv += `"Success Score","${successScore.replace(/"/g, '""')}",\n`;
+            csv += `"ML Prediction","${mlPrediction.replace(/"/g, '""')}",\n`;
+            csv += `"Confidence Level","${confidenceLevel.replace(/"/g, '""')}",\n`;
+
+            return csv;
+        }
+
+        // Helper to parse report text into JSON format for XLSX
+        function parseReportToJSON(reportText) {
+            const jsonData = [];
+            const lines = reportText.split('\n');
+            let currentSection = '';
+            let currentItem = {};
+
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                
+                if (trimmedLine.startsWith('## ')) {
+                    if (Object.keys(currentItem).length > 0) {
+                        jsonData.push(currentItem);
+                        currentItem = {};
+                    }
+                    currentSection = trimmedLine.substring(3).replace(/[^a-z0-9\s]/gi, '').trim();
+                    currentItem.Section = currentSection;
+                } else if (trimmedLine.startsWith('**') && trimmedLine.includes(': ')) {
+                    if (Object.keys(currentItem).length > 0 && currentItem.Section) { // If it's a detail within a section
+                        const parts = trimmedLine.split(': ');
+                        const key = parts[0].substring(2).replace(/\*|\:/g, '').trim();
+                        const value = parts.slice(1).join(': ').trim();
+                        currentItem[key] = value;
+                    } else { // If it's a top-level detail (like Executive Summary items)
+                        const parts = trimmedLine.split(': ');
+                        const key = parts[0].substring(2).replace(/\*|\:/g, '').trim();
+                        const value = parts.slice(1).join(': ').trim();
+                        jsonData.push({ Key: key, Value: value });
+                    }
+                } else if (trimmedLine.startsWith('- ')) {
+                    const item = trimmedLine.substring(2).trim();
+                    if (currentItem.Section) {
+                        if (!currentItem['Details']) currentItem['Details'] = [];
+                        currentItem['Details'].push(item);
+                    } else {
+                        // Handle list items outside sections if needed
+                        jsonData.push({ Item: item });
+                    }
+                } else if (trimmedLine.startsWith('**') && trimmedLine.includes(':**') && !trimmedLine.includes(': ')) { // Case like **Key:**
+                    const key = trimmedLine.substring(2).replace(/\*|\:/g, '').trim();
+                    if (currentItem.Section) {
+                        currentItem[key] = ''; // Placeholder for value if only key is present
+                    } else {
+                        jsonData.push({ Key: key, Value: '' });
+                    }
+                }
+            });
+
+            if (Object.keys(currentItem).length > 0) {
+                jsonData.push(currentItem);
+            }
+
+            // Add summary metrics to JSON for a more complete Excel export
+            const completionRate = document.getElementById('completionRate').textContent;
+            const ideasGenerated = document.getElementById('ideasCount').textContent;
+            const successScore = document.getElementById('successScore').textContent;
+            const mlPrediction = document.getElementById('mlPrediction').textContent;
+            const confidenceLevel = document.getElementById('confidenceLevel').textContent;
+
+            jsonData.push({ Section: "Summary Metrics" });
+            jsonData.push({ Metric: "Form Completion Rate", Value: completionRate });
+            jsonData.push({ Metric: "Ideas Generated", Value: ideasGenerated });
+            jsonData.push({ Metric: "Success Score", Value: successScore });
+            jsonData.push({ Metric: "ML Prediction", Value: mlPrediction });
+            jsonData.push({ Metric: "Confidence Level", Value: confidenceLevel });
+
+            return jsonData;
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCharts();
+            initializeML(); 
+            const formFields = ['ideaTitle', 'category', 'priority', 'timeline', 'problemStatement', 'solution', 'marketSize', 'expectedRevenue'];
+            formFields.forEach(fieldId => {
+                document.getElementById(fieldId).addEventListener('input', updateFormCompletion);
+                document.getElementById(fieldId).addEventListener('change', updateFormCompletion);
+            });
+        });
+    </script>
+
+</body>
+
+</html>
